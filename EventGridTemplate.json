@@ -1,0 +1,69 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "subscriptionId":{
+            "type": "string"
+        },
+        "systemTopics_tagWithCreator_name": {
+            "defaultValue": "tagWithCreator",
+            "type": "String"
+        },
+        "sites_autotagfundevrtuyg_externalid": {
+            "defaultValue": "/subscriptions/parameters('subscriptionId')/resourceGroups/awfunctionsdev/providers/Microsoft.Web/sites/autotagfundevrtuyg",
+            "type": "String"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.EventGrid/systemTopics",
+            "apiVersion": "2023-06-01-preview",
+            "name": "[parameters('systemTopics_tagWithCreator_name')]",
+            "location": "global",
+            "properties": {
+                "source": "/subscriptions/parameters('subscriptionId')",
+                "topicType": "Microsoft.Resources.Subscriptions"
+            }
+        },
+        {
+            "type": "Microsoft.EventGrid/systemTopics/eventSubscriptions",
+            "apiVersion": "2023-06-01-preview",
+            "name": "[concat(parameters('systemTopics_tagWithCreator_name'), '/', parameters('systemTopics_tagWithCreator_name'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.EventGrid/systemTopics', parameters('systemTopics_tagWithCreator_name'))]"
+            ],
+            "properties": {
+                "destination": {
+                    "properties": {
+                        "resourceId": "[concat(parameters('sites_autotagfundevrtuyg_externalid'), '/functions/TagWithCreator')]",
+                        "maxEventsPerBatch": 1,
+                        "preferredBatchSizeInKilobytes": 64
+                    },
+                    "endpointType": "AzureFunction"
+                },
+                "filter": {
+                    "includedEventTypes": [
+                        "Microsoft.Resources.ResourceWriteSuccess"
+                    ],
+                    "enableAdvancedFilteringOnArrays": true,
+                    "advancedFilters": [
+                        {
+                            "values": [
+                                "Microsoft.Resources/tags/write"
+                            ],
+                            "operatorType": "StringNotIn",
+                            "key": "data.operationName"
+                        }
+                    ]
+                },
+                "labels": [],
+                "eventDeliverySchema": "EventGridSchema",
+                "retryPolicy": {
+                    "maxDeliveryAttempts": 30,
+                    "eventTimeToLiveInMinutes": 1440
+                }
+            }
+        }
+    ]
+}
